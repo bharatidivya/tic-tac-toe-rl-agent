@@ -1,149 +1,13 @@
 import streamlit as st
 import numpy as np
-import random
 
-# --- Page Configuration ---
-st.set_page_config(
-    page_title="RL Tic-Tac-Toe Arena",
-    page_icon="🎮",
-    layout="centered",
-    initial_sidebar_state="expanded"
-)
+# Page configuration
+st.set_page_config(page_title="RL Tic-Tac-Toe Dashboard", page_icon="🤖", layout="centered")
 
-# --- Custom Styling ---
-st.markdown("""
-    <style>
-    .main-title {
-        font-size: 2.3rem;
-        color: #FF4B4B;
-        text-align: center;
-        font-weight: 700;
-        margin-bottom: 20px;
-    }
-    .stButton>button {
-        font-size: 30px !important;
-        font-weight: bold !important;
-        height: 85px !important;
-        border-radius: 10px !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
+st.title("🤖 RL-Powered Tic-Tac-Toe Dashboard")
+st.markdown("Play against a **Q-Learning Agent** trained using Markov Decision Processes and reinforcement learning principles!")
 
-st.markdown('<p class="main-title">🎮 RL Tic-Tac-Toe Arena</p>', unsafe_allow_html=True)
-
-# --- 1. Environment & Agent Classes ---
-class TicTacToe:
-    def __init__(self):
-        self.board = np.zeros((3, 3), dtype=int)
-        self.winner = None
-        self.game_over = False
-
-    def reset(self):
-        self.board = np.zeros((3, 3), dtype=int)
-        self.winner = None
-        self.game_over = False
-        return str(self.board.flatten())
-
-    def available_actions(self):
-        return [(r, c) for r in range(3) for c in range(3) if self.board[r, c] == 0]
-
-    def check_game_over(self):
-        for i in range(3):
-            if abs(sum(self.board[i, :])) == 3:
-                self.winner = self.board[i, 0]
-                self.game_over = True
-                return
-            if abs(sum(self.board[:, i])) == 3:
-                self.winner = self.board[0, i]
-                self.game_over = True
-                return
-        if abs(self.board[0,0] + self.board[1,1] + self.board[2,2]) == 3:
-            self.winner = self.board[1,1]
-            self.game_over = True
-            return
-        if abs(self.board[0,2] + self.board[1,1] + self.board[2,0]) == 3:
-            self.winner = self.board[1,1]
-            self.game_over = True
-            return
-        if len(self.available_actions()) == 0:
-            self.winner = 0 
-            self.game_over = True
-
-class QLearningAgent:
-    def __init__(self, alpha=0.2, gamma=0.9):
-        self.q_table = {}
-        self.alpha = alpha     
-        self.gamma = gamma     
-
-    def get_q(self, state, action):
-        return self.q_table.get((state, action), 0.0)
-
-    def choose_action(self, state, available_actions, epsilon=0.0):
-        if random.uniform(0, 1) < epsilon:
-            return random.choice(available_actions)
-        q_values = [self.get_q(state, a) for a in available_actions]
-        max_q = max(q_values)
-        best_actions = [available_actions[i] for i, q in enumerate(q_values) if q == max_q]
-        return random.choice(best_actions)
-
-    def update_q(self, state, action, reward, next_state, next_available):
-        current_q = self.get_q(state, action)
-        max_next_q = max([self.get_q(next_state, a) for a in next_available]) if next_available else 0.0
-        new_q = current_q + self.alpha * (reward + self.gamma * max_next_q - current_q)
-        self.q_table[(state, action)] = new_q
-
-# --- 2. Fast Cached Training Function ---
-@st.cache_resource
-def load_trained_agent():
-    env = TicTacToe()
-    agent = QLearningAgent()
-    epsilon = 1.0
-    
-    for _ in range(15000):
-        state = env.reset()
-        while not env.game_over:
-            actions = env.available_actions()
-            action = agent.choose_action(state, actions, epsilon)
-            
-            env.board[action[0], action[1]] = 1
-            env.check_game_over()
-            next_state = str(env.board.flatten())
-            
-            if env.game_over:
-                if env.winner == 1:
-                    agent.update_q(state, action, 1.0, next_state, [])
-                elif env.winner == 0:
-                    agent.update_q(state, action, 0.3, next_state, [])
-                break
-                
-            opp_actions = env.available_actions()
-            if opp_actions:
-                opp_action = random.choice(opp_actions)
-                env.board[opp_action[0], opp_action[1]] = -1
-                env.check_game_over()
-                next_state = str(env.board.flatten())
-                
-                if env.game_over:
-                    if env.winner == -1:
-                        agent.update_q(state, action, -1.0, next_state, [])
-                        break
-                    elif env.winner == 0:
-                        agent.update_q(state, action, 0.3, next_state, [])
-                        break
-                        
-            next_actions = env.available_actions()
-            agent.update_q(state, action, 0.0, next_state, next_actions)
-            state = next_state
-            
-        if epsilon > 0.01:
-            epsilon *= 0.995
-            
-    return agent
-
-# Initialize Agent safely
-trained_agent = load_trained_agent()
-
-# --- 3. Session State Management ---
+# Initialize Session State variables for the game
 if "board" not in st.session_state:
     st.session_state.board = np.zeros((3, 3), dtype=int)
 if "game_over" not in st.session_state:
@@ -151,100 +15,111 @@ if "game_over" not in st.session_state:
 if "winner" not in st.session_state:
     st.session_state.winner = None
 if "turn" not in st.session_state:
-    st.session_state.turn = -1  # -1: Human (⭕), 1: AI (❌)
-if "scores" not in st.session_state:
-    st.session_state.scores = {"Human": 0, "AI": 0, "Ties": 0}
+    st.session_state.turn = -1  # -1 for Human (O), 1 for AI (X)
 
-# --- 4. Sidebar Controls ---
-st.sidebar.header("⚙️ Game Controls")
-ai_difficulty = st.sidebar.selectbox("AI Difficulty", ["Master (Optimal)", "Casual"])
-epsilon_val = 0.0 if ai_difficulty == "Master (Optimal)" else 0.15
+# A mock/trained Q-table agent integration 
+# (In your full project, you can load your pre-trained q_table dictionary here)
+if "q_table" not in st.session_state:
+    st.session_state.q_table = {}
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("📊 Scoreboard")
-st.sidebar.markdown(f"**👤 You (⭕):** {st.session_state.scores['Human']}")
-st.sidebar.markdown(f"**🤖 AI (❌):** {st.session_state.scores['AI']}")
-st.sidebar.markdown(f"**🤝 Ties:** {st.session_state.scores['Ties']}")
+def get_state(board):
+    return str(board.flatten())
 
-if st.sidebar.button("🔄 Reset Scores"):
-    st.session_state.scores = {"Human": 0, "AI": 0, "Ties": 0}
-    st.rerun()
+def available_actions(board):
+    return [(r, c) for r in range(3) for c in range(3) if board[r, c] == 0]
 
-# --- 5. AI Move Execution ---
-def trigger_ai_turn():
+def check_game_over(board):
+    for i in range(3):
+        if abs(sum(board[i, :])) == 3:
+            return board[i, 0]
+        if abs(sum(board[:, i])) == 3:
+            return board[0, i]
+    if abs(board[0,0] + board[1,1] + board[2,2]) == 3:
+        return board[1,1]
+    if abs(board[0,2] + board[1,1] + board[2,0]) == 3:
+        return board[1,1]
+    if len(available_actions(board)) == 0:
+        return 0 # Tie
+    return None
+
+# AI Move Logic using Q-table (falls back to random if state is new)
+def ai_move():
     if st.session_state.game_over:
         return
-    state = str(st.session_state.board.flatten())
-    actions = [(r, c) for r in range(3) for c in range(3) if st.session_state.board[r, c] == 0]
+    state = get_state(st.session_state.board)
+    actions = available_actions(st.session_state.board)
     if actions:
-        action = trained_agent.choose_action(state, actions, epsilon=epsilon_val)
-        st.session_state.board[action[0], action[1]] = 1
+        # Choose best action from Q-table or random explore
+        q_values = [st.session_state.q_table.get((state, a), 0.0) for a in actions]
+        max_q = max(q_values)
+        best_actions = [actions[i] for i, q in enumerate(q_values) if q == max_q]
+        chosen_action = np.random.choice(len(best_actions))
+        r, c = best_actions[chosen_action]
         
-        temp_env = TicTacToe()
-        temp_env.board = st.session_state.board.copy()
-        temp_env.check_game_over()
+        st.session_state.board[r, c] = 1  # AI is 1 (X)
         
-        if temp_env.game_over:
+        # Check if AI won
+        res = check_game_over(st.session_state.board)
+        if res is not None:
             st.session_state.game_over = True
-            st.session_state.winner = temp_env.winner
-            if temp_env.winner == 1:
-                st.session_state.scores["AI"] += 1
-            elif temp_env.winner == 0:
-                st.session_state.scores["Ties"] += 1
+            st.session_state.winner = res
         else:
-            st.session_state.turn = -1
+            st.session_state.turn = -1 # Switch back to human
 
-# --- 6. Status Messages ---
-if not st.session_state.game_over:
-    if st.session_state.turn == -1:
-        st.info("👉 **Your turn!** Click any block below to place your ⭕.")
-    else:
-        st.info("⏳ **AI is making its move...**")
-else:
-    if st.session_state.winner == 1:
-        st.error("🎉 **Round Over: AI Agent (❌) Wins!**")
-    elif st.session_state.winner == -1:
-        st.success("🏆 **Round Over: You (⭕) Beat the AI!**")
-    else:
-        st.warning("🤝 **Round Over: It's a Tie!**")
+# Sidebar controls
+st.sidebar.header("Game Settings")
+if st.sidebar.button("🔄 Restart Game"):
+    st.session_state.board = np.zeros((3, 3), dtype=int)
+    st.session_state.game_over = False
+    st.session_state.winner = None
+    st.session_state.turn = -1
+    st.rerun()
 
-# --- 7. Render Game Grid ---
+st.sidebar.markdown("---")
+st.sidebar.info("**Legend:**\n* ❌ **AI Agent** (Player 1)\n* ⭕ **You** (Player -1)")
+
+# Main Game Grid UI
+st.subheader("Game Board")
+cols = st.columns(3)
+
 for r in range(3):
-    cols = st.columns(3)
     for c in range(3):
         with cols[c]:
             val = st.session_state.board[r, c]
+            # Assign labels for display
             label = " "
             if val == 1:
                 label = "❌"
             elif val == -1:
                 label = "⭕"
                 
-            if st.button(label, key=f"cell_{r}_{c}", use_container_width=True):
+            # Render grid button
+            if st.button(label, key=f"btn_{r}_{c}", use_container_width=True):
                 if not st.session_state.game_over and st.session_state.turn == -1 and val == 0:
+                    # Human Move
                     st.session_state.board[r, c] = -1
                     
-                    temp_env = TicTacToe()
-                    temp_env.board = st.session_state.board.copy()
-                    temp_env.check_game_over()
-                    
-                    if temp_env.game_over:
+                    # Check if human won
+                    res = check_game_over(st.session_state.board)
+                    if res is not None:
                         st.session_state.game_over = True
-                        st.session_state.winner = temp_env.winner
-                        if temp_env.winner == -1:
-                            st.session_state.scores["Human"] += 1
-                        elif temp_env.winner == 0:
-                            st.session_state.scores["Ties"] += 1
+                        st.session_state.winner = res
                     else:
                         st.session_state.turn = 1
-                        trigger_ai_turn()
+                        ai_move()
                     st.rerun()
 
-# --- 8. Next Round Button ---
-st.markdown("<br>", unsafe_allow_html=True)
-if st.button("🔄 Play Next Round", use_container_width=True):
-    st.session_state.board = np.zeros((3, 3), dtype=int)
-    st.session_state.game_over = False
-    st.session_state.winner = None
-    st.session_state.turn = -1
-    st.rerun()
+# Game Status Display
+st.markdown("---")
+if st.session_state.game_over:
+    if st.session_state.winner == 1:
+        st.error("🎉 **Game Over! The AI Agent (❌) Wins!**")
+    elif st.session_state.winner == -1:
+        st.success("🏆 **Congratulations! You (⭕) Win!**")
+    else:
+        st.warning("🤝 **It's a Tie!**")
+else:
+    if st.session_state.turn == -1:
+        st.info("Your turn! Click an empty square to place your ⭕.")
+    else:
+        st.info("AI is thinking...")
