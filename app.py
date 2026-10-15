@@ -41,7 +41,7 @@ st.markdown("""
 
 # --- Header Section ---
 st.markdown('<p class="main-title">🎮 RL Tic-Tac-Toe Arena</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Challenge a Q-Learning Agent trained via Reinforcement Learning (SPPU ML Unit V)</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">Human vs. Q-Agent: A Reinforcement Learning Game Arena</p>', unsafe_allow_html=True)
 
 # --- 1. Tic-Tac-Toe Environment ---
 class TicTacToe:
